@@ -329,16 +329,6 @@ RE.add_reaction(
                      TYPES["B"]: CHARGES["B"]}
 )
 
-# RE.add_reaction(
-#     gamma=Kw/K,
-#     reactant_types=[TYPES["A"]],
-#     reactant_coefficients=[1],
-#     product_types=[TYPES["HA"], TYPES["OH"]],
-#     product_coefficients=[1, 1],
-#     default_charges={TYPES["A"]: CHARGES["A"],
-#                      TYPES["HA"]: CHARGES["HA"],
-#                      TYPES["OH"]: CHARGES["OH"]}
-# )
 
 RE2.add_reaction(
     gamma=K2,
@@ -351,16 +341,6 @@ RE2.add_reaction(
                      TYPES["B"]: CHARGES["B"]}
 )
 
-# RE.add_reaction(
-#     gamma=Kw/K2,
-#     reactant_types=[TYPES["A2"]],
-#     reactant_coefficients=[1],
-#     product_types=[TYPES["HA2"], TYPES["OH"]],
-#     product_coefficients=[1, 1],
-#     default_charges={TYPES["A2"]: CHARGES["A2"],
-#                      TYPES["HA2"]: CHARGES["HA2"],
-#                      TYPES["OH"]: CHARGES["OH"]}
-# )
 
 # H2O autoprotolysis
 # RE.add_reaction(gamma=(1 / Kw),
@@ -386,13 +366,6 @@ pids_Cl = system.part.select(type=TYPES["Cl"]).id
 r_bins = 500
 r_min = 0.0
 r_max = system.box_l[0] / 2.0
-
-# rdf_HA_Cl_avg =np.zeros((r_bins,))
-# rdf_HA2_Cl_avg =np.zeros((r_bins,))
-# rdf_HA_HA_avg =np.zeros((r_bins,))
-# rdf_HA_N_avg =np.zeros((r_bins,))
-# rdf_HA_Na_avg =np.zeros((r_bins,))
-# rdf_Na_Cl_avg =np.zeros((r_bins,))
 
 rdf_HA_Cl_avg = np.zeros((len(pHs), r_bins))
 rdf_HA2_Cl_avg = np.zeros((len(pHs), r_bins))
