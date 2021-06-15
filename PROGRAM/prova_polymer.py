@@ -22,13 +22,37 @@ from espressomd.interactions import HarmonicBond
 from espressomd.interactions import FeneBond
 from espressomd.interactions import AngleHarmonic
 from espressomd.interactions import Dihedral
+from espressomd import observables, accumulators, analyze
+
 from tipus_particules import save_vxyz
 from tipus_particules import convert_vxyz
-from espressomd import observables, accumulators, analyze
+from sample_functions import ideal_alpha
+from sample_functions import block_analyze
+from sample_functions import use_interactions
 
 ureg = pint.UnitRegistry()
 
-TEMPERATURE = 300 * ureg.kelvin
+input = np.loadtxt('input.dat')
+print(input)
+TEMPERATURE = input[0] * ureg.kelvin        #Temperature (K)
+n_poly = int(input[1])	                    #N_Polymers
+C_ACID = input[2]* ureg.molar               #C_Polymer (mol/L)
+C_SALT = input[3]* ureg.molar	            #C_Salt (mol/L)
+N_MON = int(input[4])	                    #N_MON
+N_NH = int(input[5]) 	                    #N_NH
+N_NH2 = int(input[6])	                    #N_NH2
+bond_l = input[7]*ureg.angstrom             #bond_length (nm)
+k_bond = input[8]*ureg.kcal/(ureg.mol*(ureg.angstrom**2)) #k_bond (kcal/mol*A^2)
+k_angle = input[9]*ureg.kcal/ureg.mol	                  #k_angle (kcal/mol)
+pK = input[10]  	                        #pK1
+pK2 = input[11]	                            #pK2
+NUM_PHS = int(input[12])	                #NUM_pH's
+pHmin = input[13]                           # lowest pH value to be used
+pHmax = input[14]                           # highest pH value to be used
+N_BLOCKS = int(input[15])                   # Number of samples per block
+DESIRED_BLOCK_SIZE = int(input[16])         # desired number of samples per block
+PROB_REACTION = input[17]                   # probability of accepting the reaction move. This parameter changes the speed of convergence.
+
 KT = TEMPERATURE * ureg.boltzmann_constant
 WATER_PERMITTIVITY = 80
 BJERRUM_LENGTH = ureg.elementary_charge**2 / (4 * ureg.pi * ureg.vacuum_permittivity * WATER_PERMITTIVITY * KT)
@@ -36,63 +60,34 @@ ureg.define(f'sim_energy = {TEMPERATURE} * boltzmann_constant')
 ureg.define(f'sim_length = 0.5 * {BJERRUM_LENGTH}')
 ureg.define(f'sim_charge = 1 * e')
 
-n_poly = 1
-C_ACID = 5e-3 * ureg.molar
-C_SALT = 1.0 * C_ACID
-N_NH = 48
-N_NH2 = 2
-N_ACID = N_NH+N_NH2
-N_MON = 148
+# Simulation box (reduced units)
+N_ACID = N_NH + N_NH2
 BOX_V = (N_MON / (ureg.avogadro_constant * C_ACID)).to("sim_length^3")
 BOX_L = BOX_V ** (1 / 3)
 BOX_L_UNITLESS = BOX_L.to("sim_length").magnitude
 N_SALT = int((C_SALT * BOX_V * ureg.avogadro_constant).to('dimensionless'))
-k_bond = 300*ureg.kcal/(ureg.mol*(ureg.angstrom**2))
-k_bond_sim = (k_bond/ureg.avogadro_constant).to('sim_energy/(sim_length^2)')
 C_ACID_UNITLESS = C_ACID.to('mol/L').magnitude
 C_SALT_UNITLESS = C_SALT.to('mol/L').magnitude
-print('N_salt = ',N_SALT, ', N_MON =',N_MON,', N_ACID = ',N_ACID)
-print('BOX Volume = ',BOX_V.to("nm^3"))
-print('BOX L = ',BOX_L.to("nm"))
-print('Ionic strength =',0.5*(C_ACID+2*C_SALT))
-bond_l = 1.5*ureg.angstrom
+
+# Simulation parameters (reduced units)
+k_bond_sim = (k_bond/ureg.avogadro_constant).to('sim_energy/(sim_length^2)')
 bond_l_sim = bond_l.to("sim_length")
 k_angle = 0.01*ureg.kcal/ureg.mol
 k_angle_sim = (k_angle/ureg.avogadro_constant).to("sim_energy")
-print(k_angle_sim)
-print(k_bond_sim)
-print(bond_l_sim)
 
-# acidity constant
-pK = 8.18
-pK2 = 10.02
+# Acid-Base parameters
 K = 10**(-pK)
 K2 = 10**(-pK2)
 pKw = 14.0  # autoprotolysis constant of water
 Kw = 10**(-pKw)
-# variables for pH sampling
-NUM_PHS = 2  # number of pH values
-
-pHmin = 4.5  # lowest pH value to be used
-pHmax = 9.5   # highest pH value to be used
 pHs = np.linspace(pHmin, pHmax, NUM_PHS)  # list of pH values
-# Simulate an interacting system with steric repulsion (Warning: it will be slower than without WCA!)
-USE_WCA = True
-# Simulate an interacting system with electrostatics (Warning: it will be very slow!)
-USE_ELECTROSTATICS = True
-USE_FENE = True
-USE_BENDING = True
-USE_DIHEDRAL_POT = False
+
+USE_WCA, USE_ELECTROSTATICS, USE_FENE, USE_BENDING, USE_DIHEDRAL_POT = use_interactions(True,False,True,False,False)
 COMPUTE_RDF = True
 
 if USE_ELECTROSTATICS:
     assert USE_WCA, "You can not use electrostatics without a short range repulsive potential. Otherwise oppositely charged particles could come infinitely close."
 
-# Parameters according to the binning method
-N_BLOCKS = 16  # number of block to be used in data analysis
-DESIRED_BLOCK_SIZE = 100  # desired number of samples per block
-
-PROB_REACTION = 0.5  # probability of accepting the reaction move. This parameter changes the speed of convergence.
 
 # number of reaction samples per each pH value
 NUM_SAMPLES = int(N_BLOCKS * DESIRED_BLOCK_SIZE / PROB_REACTION)
@@ -166,7 +161,6 @@ system.time_step = 0.005
 system.cell_system.skin = 0.4
 system.periodicity = [True, True, True]
 np.random.seed(seed=10)  # initialize the random number generator in numpy
-outfile = open('polymer.vtf', 'w')
 
 
 # we need to define bonds before creating polymers
@@ -257,8 +251,6 @@ if ADD_SALT:
                 type=[TYPES["Cl"]] * N_SALT,
                 q=[CHARGES["Cl"]] * N_SALT)
 
-# Write the structure of the system (type, bonds and coordinates of each particle)
-vtf.writevsf(system, outfile)
 
 # Check charge neutrality
 assert np.abs(np.sum(system.part[:].q)) < 1E-10
@@ -270,23 +262,18 @@ if USE_WCA:
         #lj_eps = combination_rule_epsilon("Lorentz", lj_epsilons[str(type_1)], lj_epsilons[str(type_2)])
 
         system.non_bonded_inter[type_1, type_2].wca.set_params(epsilon=1.0, sigma=lj_sig)
-        #print('sigma',type_1, type_2, lj_sig)
-        #print('epsilon',type_1, type_2, lj_eps)
 
     # relax the overlaps with steepest descent
     system.integrator.set_steepest_descent(f_max=0, gamma=0.1, max_displacement=0.1)
     system.integrator.run(1000)
     system.integrator.set_vv()  # to switch back to velocity Verlet
 
-vtf.writevcf(system, outfile)
 
 # save_vxyz(system,'polymer1.xyz',mode='a',aplicar_PBC=True)
-# convert_vxyz('polyer1.xyz','polymer2.xyz')
 # add thermostat and short integration to let the system relax
 system.thermostat.set_langevin(kT=KT.to("sim_energy").magnitude, gamma=1.0, seed=7)
 system.integrator.run(steps=1000)
 
-vtf.writevcf(system, outfile)
 outfile2 = 'polymer2.xyz'
 #save_vxyz(system,outfile2,mode='w',aplicar_PBC=True)
 
@@ -355,15 +342,8 @@ RE2.add_reaction(
 #print(RE.get_status())
 #system.setup_type_map([TYPES["HA"],TYPES["A"],TYPES["B"],TYPES["N"],TYPES["Na"],TYPES["Cl"],TYPES["OH"],TYPES["HA2"],TYPES["A2"]])
 
-pids_HA2 = system.part.select(type=TYPES["HA2"]).id
-pids_HA = system.part.select(type=TYPES["HA"]).id
-pids_A2 = system.part.select(type=TYPES["A2"]).id
-pids_A = system.part.select(type=TYPES["A"]).id
-pids_N = system.part.select(type=TYPES["N"]).id
-pids_Na = system.part.select(type=TYPES["Na"]).id
-pids_Cl = system.part.select(type=TYPES["Cl"]).id
 # Calculate the averaged rdfs
-r_bins = 500
+r_bins = 300
 r_min = 0.0
 r_max = system.box_l[0] / 2.0
 
@@ -375,8 +355,6 @@ rdf_HA_Na_avg = np.zeros((len(pHs), r_bins))
 rdf_Na_Cl_avg = np.zeros((len(pHs), r_bins))
 qdist = np.zeros((len(pHs), N_MON))
 
-def ideal_alpha(pH, pK):
-    return 1. / (1 + 10**(pK - pH))
 
 def equilibrate_pH():
     RE.reaction(reaction_steps=20 * N_ACID + 1)
@@ -401,7 +379,7 @@ def perform_sampling(npH,num_samples, num_As: np.ndarray, num_As2: np.ndarray, n
             RE2.reaction(reaction_steps=N_NH2 + 1)
 
         if USE_WCA:
-            system.integrator.run(steps=1000)
+            system.integrator.run(steps=2000)
         num_As[i] = system.number_of_particles(type=TYPES["A"])
         num_As2[i] = system.number_of_particles(type=TYPES["A2"])
         num_B[i] = system.number_of_particles(type=TYPES["B"])
@@ -437,7 +415,6 @@ def perform_sampling(npH,num_samples, num_As: np.ndarray, num_As2: np.ndarray, n
         #save_vxyz(system,outfile2,mode='a',aplicar_PBC=True)
 
 
-        # vtf.writevcf(system, outfile) #Write the final configuration at each pH production run
 
 times = np.zeros(NUM_SAMPLES)
 # Observables for cheeck that the simulation is consistent with the LAngevin thermostat parameters
@@ -470,7 +447,6 @@ for ipH, pH in enumerate(pHs):
     print(f"measured number of NH2+NH: {np.mean(num_As2_at_each_pH[ipH])+np.mean(num_As_at_each_pH[ipH]):.2f}, (ideal: {N_NH*ideal_alpha(pH, pK)+N_NH2*ideal_alpha(pH, pK2):.2f})")
     print(f"measured number of B+: {np.mean(num_B_at_each_pH[ipH]):.2f})")
     save_vxyz(system,outfile2,mode='a',aplicar_PBC=True)
-    vtf.writevcf(system, outfile) #Write the final configuration at each pH production run
 
     print(f"radius of gyration : {np.mean(rad_gyr_at_each_pH[ipH]):.2f}")
     print(f"end to end distance : {np.mean(end_2e_at_each_pH[ipH]):.2f}")
@@ -478,7 +454,6 @@ for ipH, pH in enumerate(pHs):
 
 outfile3 = 'polymer3.xyz'
 convert_vxyz(outfile2,outfile3)
-outfile.close()
 
 # To check that the Langevin thermostat works correctly we compute the instantaneous temperature at each sample
 T_inst = 2. / 3. * e_kin / (N_MON + 2*N_ACID + 2*N_SALT)
@@ -487,37 +462,37 @@ qdist = qdist / c
 
 
 
-# statistical analysis of the results
-def block_analyze(input_data, n_blocks=16):
-    data = np.asarray(input_data)
-    block = 0
-    # this number of blocks is recommended by Janke as a reasonable compromise
-    # between the conflicting requirements on block size and number of blocks
-    block_size = int(data.shape[1] // n_blocks)
-    print(f"block_size: {block_size}")
-    # initialize the array of per-block averages
-    block_average = np.zeros((n_blocks, data.shape[0]))
-    # calculate averages per each block
-    for block in range(n_blocks):
-        block_average[block] = np.average(data[:, block * block_size: (block + 1) * block_size], axis=1)
-    # calculate the average and average of the square
-    av_data = np.average(data, axis=1)
-    av2_data = np.average(data * data, axis=1)
-    # calculate the variance of the block averages
-    block_var = np.var(block_average, axis=0)
-    # calculate standard error of the mean
-    err_data = np.sqrt(block_var / (n_blocks - 1))
-    # estimate autocorrelation time using the formula given by Janke
-    # this assumes that the errors have been correctly estimated
-    tau_data = np.zeros(av_data.shape)
-    for val in range(av_data.shape[0]):
-        if av_data[val] == 0:
-            # unphysical value marks a failure to compute tau
-            tau_data[val] = -1.0
-        else:
-            tau_data[val] = 0.5 * block_size * n_blocks / (n_blocks - 1) * block_var[val] \
-                / (av2_data[val] - av_data[val] * av_data[val])
-    return av_data, err_data, tau_data, block_size
+# # statistical analysis of the results
+# def block_analyze(input_data, n_blocks=16):
+#     data = np.asarray(input_data)
+#     block = 0
+#     # this number of blocks is recommended by Janke as a reasonable compromise
+#     # between the conflicting requirements on block size and number of blocks
+#     block_size = int(data.shape[1] // n_blocks)
+#     print(f"block_size: {block_size}")
+#     # initialize the array of per-block averages
+#     block_average = np.zeros((n_blocks, data.shape[0]))
+#     # calculate averages per each block
+#     for block in range(n_blocks):
+#         block_average[block] = np.average(data[:, block * block_size: (block + 1) * block_size], axis=1)
+#     # calculate the average and average of the square
+#     av_data = np.average(data, axis=1)
+#     av2_data = np.average(data * data, axis=1)
+#     # calculate the variance of the block averages
+#     block_var = np.var(block_average, axis=0)
+#     # calculate standard error of the mean
+#     err_data = np.sqrt(block_var / (n_blocks - 1))
+#     # estimate autocorrelation time using the formula given by Janke
+#     # this assumes that the errors have been correctly estimated
+#     tau_data = np.zeros(av_data.shape)
+#     for val in range(av_data.shape[0]):
+#         if av_data[val] == 0:
+#             # unphysical value marks a failure to compute tau
+#             tau_data[val] = -1.0
+#         else:
+#             tau_data[val] = 0.5 * block_size * n_blocks / (n_blocks - 1) * block_var[val] \
+#                 / (av2_data[val] - av_data[val] * av_data[val])
+#     return av_data, err_data, tau_data, block_size
 
 # estimate the statistical error and the autocorrelation time
 av_num_As, err_num_As, tau, block_size = block_analyze(num_As_at_each_pH, N_BLOCKS)

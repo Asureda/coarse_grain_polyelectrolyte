@@ -11,7 +11,8 @@ cores=3
 mkdir OUTPUT/
 
 # Copy the INPUT filles to tmp. folder
-#cp INPUT/* PROGRAM/$tmp_folder/
+
+cp INPUT/* .
 
 
 #Copy the program scripts in the tmp. folder
@@ -26,7 +27,7 @@ mkdir OUTPUT/
 
 #cd $tmp_folder/
 
-./pypresso prova_polymer.py
+./pypresso PROGRAM/prova_polymer.py
 #mpirun -n $cores ./pypresso prova_polymer.py
 #nuitka  --nofollow-imports binning.py
 #./binning.bin
@@ -43,8 +44,9 @@ mkdir OUTPUT/$tmp_folder/data/
 mv  *.png OUTPUT/$tmp_folder/figures/
 mv *.vtf OUTPUT/$tmp_folder/data/
 mv *.xyz OUTPUT/$tmp_folder/data/
+mv input.dat OUTPUT/$tmp_folder/
 
-#mv PROGRAM/$tmp_folder/* OUTPUT/$tmp_folder/
+cp PROGRAM/* OUTPUT/$tmp_folder/
 
 
 #rm -r PROGRAM/$tmp_folder/
