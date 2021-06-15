@@ -460,40 +460,6 @@ T_inst = 2. / 3. * e_kin / (N_MON + 2*N_ACID + 2*N_SALT)
 # ionization degree alpha calculated from the Henderson-Hasselbalch equation for an ideal system
 qdist = qdist / c
 
-
-
-# # statistical analysis of the results
-# def block_analyze(input_data, n_blocks=16):
-#     data = np.asarray(input_data)
-#     block = 0
-#     # this number of blocks is recommended by Janke as a reasonable compromise
-#     # between the conflicting requirements on block size and number of blocks
-#     block_size = int(data.shape[1] // n_blocks)
-#     print(f"block_size: {block_size}")
-#     # initialize the array of per-block averages
-#     block_average = np.zeros((n_blocks, data.shape[0]))
-#     # calculate averages per each block
-#     for block in range(n_blocks):
-#         block_average[block] = np.average(data[:, block * block_size: (block + 1) * block_size], axis=1)
-#     # calculate the average and average of the square
-#     av_data = np.average(data, axis=1)
-#     av2_data = np.average(data * data, axis=1)
-#     # calculate the variance of the block averages
-#     block_var = np.var(block_average, axis=0)
-#     # calculate standard error of the mean
-#     err_data = np.sqrt(block_var / (n_blocks - 1))
-#     # estimate autocorrelation time using the formula given by Janke
-#     # this assumes that the errors have been correctly estimated
-#     tau_data = np.zeros(av_data.shape)
-#     for val in range(av_data.shape[0]):
-#         if av_data[val] == 0:
-#             # unphysical value marks a failure to compute tau
-#             tau_data[val] = -1.0
-#         else:
-#             tau_data[val] = 0.5 * block_size * n_blocks / (n_blocks - 1) * block_var[val] \
-#                 / (av2_data[val] - av_data[val] * av_data[val])
-#     return av_data, err_data, tau_data, block_size
-
 # estimate the statistical error and the autocorrelation time
 av_num_As, err_num_As, tau, block_size = block_analyze(num_As_at_each_pH, N_BLOCKS)
 av_num_As2, err_num_As2, tau5, block_size = block_analyze(num_As2_at_each_pH, N_BLOCKS)
