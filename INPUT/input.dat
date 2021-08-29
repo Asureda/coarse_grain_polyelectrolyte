@@ -1,19 +1,22 @@
 300	# Temperature (K)
 1	# N_Polymers
-5e-3	# C_Polymer (mol/L)
-5e-3	# C_Salt (mol/L)
-148	# N_MON
-48	# N_NH
+1e-3	# C_Polymer (mol/L)
+1e-3	# C_Salt (mol/L)
+22	# N_MON
+6	# N_NH
 2	# N_NH2
 1.5	# bond_length (A)
 300	# k_bond (kcal/mol*A^2)
 0.01	# k_angle (kcal/mol)
 8.18	# pK1
 10.02	# pK2
-1	# NUM_pH's
-4.5	# pH_Min
-9.5	# pH_Max
+10	# NUM_pH's
+4.0	# pH_Min
+12.0	# pH_Max
 16	# number of block to be used in data analysis
-100	# Number of samples per block
+50	# Number of samples per block
 0.5  	# probability of accepting the reaction move. This parameter changes the speed of convergence.
+0.001	# time_step
+
+
 

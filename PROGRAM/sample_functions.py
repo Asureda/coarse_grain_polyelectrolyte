@@ -10,6 +10,7 @@ def use_interactions(WCA,ELECTROSTATICS,FENE,BENDING,DIHEDRAL):
     USE_DIHEDRAL_POT = DIHEDRAL
     return USE_WCA, USE_ELECTROSTATICS, USE_FENE, USE_BENDING, USE_DIHEDRAL_POT
 
+# USE_WCA, USE_ELECTROSTATICS, USE_FENE, USE_BENDING, USE_DIHEDRAL_POT = use_interactions(True,False,True,True,False)
 
 def ideal_alpha(pH, pK):
     return 1. / (1 + 10**(pK - pH))
