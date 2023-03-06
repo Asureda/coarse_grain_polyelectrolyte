@@ -18,8 +18,8 @@ from espressomd import observables, accumulators, analyze
 from Properties import Properties
 
 
-class MCMDynamics(Properties):
-    def __init__(self, input_dict, system):
+class EnsembleDynamics(Properties):
+    def __init__(self, input_dict):
         super().__init__(input_dict)
 
     def _warm_up_system(self):
