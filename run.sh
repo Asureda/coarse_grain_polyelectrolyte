@@ -27,7 +27,7 @@ cp INPUT/* .
 
 #cd $tmp_folder/
 
-./pypresso PROGRAM/prova_polymer.py
+./pypresso PROGRAM/run_test.py
 #mpirun -n $cores ./pypresso prova_polymer.py
 #nuitka  --nofollow-imports binning.py
 #./binning.bin
