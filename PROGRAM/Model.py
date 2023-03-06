@@ -15,40 +15,33 @@ from espressomd.interactions import AngleHarmonic
 from espressomd.interactions import Dihedral
 from espressomd import observables, accumulators, analyze
 
-from property_test_class import Properties
+from Properties import Properties
 
 
 class Model(Properties):
     def __init__(self, input_dict):
         super().__init__(input_dict)
 
-    def _system_definition(self):
-        self.system = espressomd.System(box_l=[self.box_length_reduced_units] * 3)
-        self.system.time_step = self.time_step
-        self.system.cell_system.skin = 2.0
-        self.system.periodicity = [True, True, True]
-        np.random.seed(seed=10)  # initialize the random number generator in numpy
-
     def _bonded_interactions(self):
         if self.USE_FENE:
             self.bond_pot = FeneBond(k=self.k_bond_reduced_units, d_r_max=4.0, r_0=1.5)
         else :
-            bond_pot = HarmonicBond(k=self.k_bond_reduced_units, r_0=1.5)
+            self.bond_pot = HarmonicBond(k=self.k_bond_reduced_units, r_0=1.5)
 
         if self.USE_BENDING:
             self.bend=AngleHarmonic(bend=self.k_bending_reduced_units, phi0=np.pi*(2.0/3.0))
-            system.bonded_inter.add(self.bend)
+            self.system.bonded_inter.add(self.bend)
 
         if self.USE_DIHEDRAL_POT:
             self.dihedral = Dihedral(bend=10.0, mult=3, phase=np.pi*(2.0/3.0))
-            system.bonded_inter.add(dihedral)
+            self.system.bonded_inter.add(dihedral)
 
     def _non_bonded_interactions(self):
         if self.USE_WCA:
             for type_1, type_2 in ((x, y) for x in self.type_particles.values() for y in self.type_particles.values()):
                 lj_sig = combination_rule_sigma("Berthelot", self.sigma_reduced_units[str(type_1)], self.sigma_reduced_units[str(type_2)])
                 lj_eps = combination_rule_epsilon("Lorentz", self.epsilon_reduced_units[str(type_1)], self.epsilon_reduced_units[str(type_2)])
-                system.non_bonded_inter[type_1, type_2].wca.set_params(epsilon=lj_eps, sigma=0.5*lj_sig)
+                self.system.non_bonded_inter[type_1, type_2].wca.set_params(epsilon=lj_eps, sigma=0.5*lj_sig)
 
     def _long_range_interactions(self):
         if self.USE_ELECTROSTATICS:
@@ -91,52 +84,52 @@ class Model(Properties):
 
                 #p = system.part.add(pos=position, type=TYPES["A"], q=CHARGES["A"])
                 if index>0:
-                    system.part.by_id(id).add_bond((bond_pot, id -1))
-                    if USE_BENDING:
+                    self.system.part.by_id(id).add_bond((self.bond_pot, id -1))
+                    if self.USE_BENDING:
                         if index > 0 and index < len(polymer) -1:
-                            self.system.part.by_id(id).add_bond((bend,id -1, id + 1))  # Ja es crearà la seg:uent partícula
-                    if USE_DIHEDRAL_POT:
+                            self.system.part.by_id(id).add_bond((self.bend,id -1, id + 1))  # Ja es crearà la seg:uent partícula
+                    if self.USE_DIHEDRAL_POT:
                         if index > 0 and index < len(polymer) -2:
-                            self.system.part.by_id(id).add_bond((dihedral, id-1, id+1, id+2))
+                            self.system.part.by_id(id).add_bond((self.dihedral, id-1, id+1, id+2))
 
     def _add_reactions(self):
 
-        exclusion_radius = combination_rule_sigma("Berthelot", lj_sigmas["1"], lj_sigmas["2"]) if USE_WCA else 0.0
-        RE = espressomd.reaction_methods.ConstantpHEnsemble(
+        self.exclusion_radius_reaction1 = combination_rule_sigma("Berthelot", self.epsilon_reduced_units["A"], self.epsilon_reduced_units["B"]) if USE_WCA else 0.0
+        self.reaction1 = espressomd.reaction_methods.ConstantpHEnsemble(
             kT=KT.to("sim_energy").magnitude,
             exclusion_range=exclusion_radius,
             seed=77,
             constant_pH=4.0
         )
 
-        exclusion_radius2 = combination_rule_sigma("Berthelot", lj_sigmas["6"], lj_sigmas["2"]) if USE_WCA else 0.0
-        RE2 = espressomd.reaction_methods.ConstantpHEnsemble(
+        self.exclusion_radius_reaction2 = combination_rule_sigma("Berthelot", self.epsilon_reduced_units["7"], self.epsilon_reduced_units["2"]) if USE_WCA else 0.0
+        self.reaction2 = espressomd.reaction_methods.ConstantpHEnsemble(
             kT=KT.to("sim_energy").magnitude,
-            exclusion_range=exclusion_radius2,
+            exclusion_range=self.exclusion_radius_reaction2,
             seed=77,
             constant_pH=4.0
         )
 
-        RE.add_reaction(
-            gamma=K,
-            reactant_types=[TYPES["HA"]],
+        self.reaction1.add_reaction(
+            gamma = 10**(-self.pK),
+            reactant_types=[self.type_particles["HA"]],
             reactant_coefficients=[1],
-            product_types=[TYPES["A"], TYPES["B"]],
+            product_types=[self.type_particles["A"], self.type_particles["B"]],
             product_coefficients=[1, 1],
-            default_charges={TYPES["HA"]: CHARGES["HA"],
-                             TYPES["A"]: CHARGES["A"],
-                             TYPES["B"]: CHARGES["B"]}
+            default_charges={self.type_particles["HA"]: self.charge_reduced_units["HA"],
+                             self.type_particles["A"]: self.charge_reduced_units["A"],
+                             self.type_particles["B"]: self.charge_reduced_units["B"]}
         )
 
-        RE.set_non_interacting_type(type=len(TYPES)) # this parameter helps speed up the calculation in an interacting system
-        RE2.add_reaction(
-            gamma=K2,
-            reactant_types=[TYPES["HA2"]],
+        self.reaction1.set_non_interacting_type(type=len(self.type_particles)) # this parameter helps speed up the calculation in an interacting system
+        self.reaction2.add_reaction(
+            gamma = 10**(-self.pK2),
+            reactant_types=[self.type_particles["HA2"]],
             reactant_coefficients=[1],
-            product_types=[TYPES["A2"], TYPES["B"]],
+            product_types=[self.type_particles["A2"], self.type_particles["B"]],
             product_coefficients=[1, 1],
-            default_charges={TYPES["HA2"]: CHARGES["HA2"],
-                             TYPES["A2"]: CHARGES["A2"],
-                             TYPES["B"]: CHARGES["B"]}
+            default_charges={self.type_particles["HA2"]: self.charge_reduced_units["HA2"],
+                             self.type_particles["A2"]: self.charge_reduced_units["A2"],
+                             self.type_particles["B"]: self.charge_reduced_units["B"]}
         )
-        RE2.set_non_interacting_type(type=len(TYPES)) # this parameter helps speed up the calculation in an interacting system
+        self.reaction2.set_non_interacting_type(type=len(self.type_particles)) # this parameter helps speed up the calculation in an interacting system

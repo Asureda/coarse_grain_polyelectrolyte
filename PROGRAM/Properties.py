@@ -2,6 +2,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pint
+import espressomd
 
 from functools import wraps
 
@@ -41,7 +42,7 @@ class Properties:
         self._read_parameters()
         self._set_units()
         self._simulation_settings()
-
+        self._system_definition()
     @property
     def temperature(self):
         print("Getting Temerature")
@@ -266,6 +267,13 @@ class Properties:
         self.sample_begin_capture = 200
         self.n_samp_iter = int((self.num_samples-self.sample_begin_capture)/self.sample_iteration_size_capture)
         self.number_integration_steps = 1000
+
+    def _system_definition(self):
+        self.system = espressomd.System(box_l=[self.box_length_reduced_units] * 3)
+        self.system.time_step = self.time_step
+        self.system.cell_system.skin = 2.0
+        self.system.periodicity = [True, True, True]
+        np.random.seed(seed=10)  # initialize the random number generator in numpy
 
     def _read_parameters(self):
         input_ = self.input
