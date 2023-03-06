@@ -1,1 +1,1 @@
-# Coarse-grained Hybride MonteCarlo and Molecular Dynamics simulation for models for charget weak polyelectrolytes and IDPs.
+# Coarse-grained Hybride MonteCarlo and Molecular Dynamics simulation for models for charged weak polyelectrolytes and IDPs.
