@@ -23,16 +23,11 @@ class Model(Properties):
     def __init__(self, input_dict):
         super().__init__(input_dict)
         self._bonded_interactions()
-        print("Bonded interactions passades")
         self._create_polymer()
-        print("Polimer created")
         self._add_salt_ions()
-        print("ions created")
         self._non_bonded_interactions()
         self._long_range_interactions()
-        print("Non Bonded interactions passades")
         self._add_reactions()
-        print("Reactions passades")
 
     def _bonded_interactions(self):
 
@@ -54,7 +49,7 @@ class Model(Properties):
             self.dihedral = Dihedral(
                 bend=self.k_dihedral_reduced_units.magnitude,
                 mult=3,
-                phase=np.pi * (2.0 / 3.0),
+                phase= np.pi , #np.pi * (2.0 / 3.0),
             )
             self.system.bonded_inter.add(self.dihedral)
 
@@ -80,7 +75,7 @@ class Model(Properties):
                 ].wca.set_params(epsilon=lj_eps, sigma=0.5 * lj_sig)
                 # relax the overlaps with steepest descent
                 self.system.integrator.set_steepest_descent(f_max=0, gamma=0.1, max_displacement=0.1)
-                self.system.integrator.run(20)
+                self.system.integrator.run(100)
                 self.system.integrator.set_vv()  # to switch back to velocity Verlet
 
     def _long_range_interactions(self):
@@ -95,7 +90,7 @@ class Model(Properties):
                     )
                     .to("sim_length * sim_energy / sim_charge^2")
                     .magnitude,
-                    accuracy=1e-4,
+                    accuracy=1e-5,
                 )
             else:
                 self.coulomb = espressomd.electrostatics.DH(
@@ -134,8 +129,8 @@ class Model(Properties):
                         self.system.part.add(
                             id=id,
                             pos=position,
-                            type=self.type_particles["A2"],
-                            q=self.charge_reduced_units["A2"],
+                            type=self.type_particles["N2"],
+                            q=self.charge_reduced_units["N2"],
                         )
                         #print(id, "A2")
                         n_a += 1
@@ -144,8 +139,8 @@ class Model(Properties):
                         self.system.part.add(
                             id=id,
                             pos=position,
-                            type=self.type_particles["A"],
-                            q=self.charge_reduced_units["A"],
+                            type=self.type_particles["N"],
+                            q=self.charge_reduced_units["N"],
                         )
                         #print(id, "A")
                         n_a += 1
@@ -154,8 +149,8 @@ class Model(Properties):
                     self.system.part.add(
                         id=id,
                         pos=position,
-                        type=self.type_particles["N"],
-                        q=self.charge_reduced_units["N"],
+                        type=self.type_particles["CH2"],
+                        q=self.charge_reduced_units["CH2"],
                     )
                     #print(id, "N")
 
@@ -172,7 +167,7 @@ class Model(Properties):
                             self.system.part.by_id(id).add_bond(
                                 (self.dihedral, id - 1, id + 1, id + 2)
                             )
-            print(n_a)
+            #print(n_a)
 
     def _add_salt_ions(self):
 
@@ -188,24 +183,24 @@ class Model(Properties):
             q=[self.charge_reduced_units["Cl"]] * self.n_acid,
         )
 
-        self.system.part.add(
-            pos=np.random.random((self.n_salt, 3)) * self.box_length_reduced_units,
-            type=[self.type_particles["Na"]] * self.n_salt,
-            q=[self.charge_reduced_units["Na"]] * self.n_salt,
-        )
+        # self.system.part.add(
+        #     pos=np.random.random((self.n_salt, 3)) * self.box_length_reduced_units,
+        #     type=[self.type_particles["Na"]] * self.n_salt,
+        #     q=[self.charge_reduced_units["Na"]] * self.n_salt,
+        # )
 
-        self.system.part.add(
-            pos=np.random.random((self.n_salt, 3)) * self.box_length_reduced_units,
-            type=[self.type_particles["Cl"]] * self.n_salt,
-            q=[self.charge_reduced_units["Cl"]] * self.n_salt,
-        )
+        # self.system.part.add(
+        #     pos=np.random.random((self.n_salt, 3)) * self.box_length_reduced_units,
+        #     type=[self.type_particles["Cl"]] * self.n_salt,
+        #     q=[self.charge_reduced_units["Cl"]] * self.n_salt,
+        # )
 
     def _add_reactions(self):
 
         self.exclusion_radius_reaction1 = (
             combination_rule_sigma(
                 "Berthelot",
-                self.epsilon_reduced_units["A"],
+                self.epsilon_reduced_units["N"],
                 self.epsilon_reduced_units["B"],
             )
             if self.USE_WCA
@@ -221,7 +216,7 @@ class Model(Properties):
         self.exclusion_radius_reaction2 = (
             combination_rule_sigma(
                 "Berthelot",
-                self.epsilon_reduced_units["A2"],
+                self.epsilon_reduced_units["N2"],
                 self.epsilon_reduced_units["B"],
             )
             if self.USE_WCA
@@ -236,11 +231,11 @@ class Model(Properties):
 
         self.reaction1.add_reaction(
             gamma=10 ** (-self.pK),
-            reactant_types=[self.type_particles["HA"]],
-            product_types=[self.type_particles["A"], self.type_particles["B"]],
+            reactant_types=[self.type_particles["NH"]],
+            product_types=[self.type_particles["N"], self.type_particles["B"]],
             default_charges={
-                self.type_particles["HA"]: self.charge_reduced_units["HA"],
-                self.type_particles["A"]: self.charge_reduced_units["A"],
+                self.type_particles["NH"]: self.charge_reduced_units["NH"],
+                self.type_particles["N"]: self.charge_reduced_units["N"],
                 self.type_particles["B"]: self.charge_reduced_units["B"],
             },
         )
@@ -250,11 +245,11 @@ class Model(Properties):
         )  # this parameter helps speed up the calculation in an interacting system
         self.reaction2.add_reaction(
             gamma=10 ** (-self.pK2),
-            reactant_types=[self.type_particles["HA2"]],
-            product_types=[self.type_particles["A2"], self.type_particles["B"]],
+            reactant_types=[self.type_particles["NH2"]],
+            product_types=[self.type_particles["N2"], self.type_particles["B"]],
             default_charges={
-                self.type_particles["HA2"]: self.charge_reduced_units["HA2"],
-                self.type_particles["A2"]: self.charge_reduced_units["A2"],
+                self.type_particles["NH2"]: self.charge_reduced_units["NH2"],
+                self.type_particles["N2"]: self.charge_reduced_units["N2"],
                 self.type_particles["B"]: self.charge_reduced_units["B"],
             },
         )

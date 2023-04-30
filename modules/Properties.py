@@ -46,14 +46,11 @@ def _electrostatics_required(f):
 
 class Properties:
     def __init__(self, input_dict):
-        self._has_read = False
-        self._has_run = False
         self.input = input_dict
         self._read_parameters()
         self._set_units()
         self._simulation_settings()
         self._system_definition()
-        print("Properties passades")
 
     @property
     def temperature(self):
@@ -177,7 +174,7 @@ class Properties:
 
     @USE_ELECTROSTATICS.setter
     @_boolean_required
-    @_electrostatics_required
+    #@_electrostatics_required
     def USE_ELECTROSTATICS(self, value):
         self._USE_ELECTROSTATICS = value
 
@@ -315,6 +312,10 @@ class Properties:
         self.charge_reduced_units = {}
         self.sigma_reduced_units = {}
         self.epsilon_reduced_units = {}
+        # Calcular el time step en unidades reducidas
+        # time_step_reduced_units = (
+        #     0.1 * np.sqrt(mass_reduced_units * bond_length_reduced_units ** 2 / force_reduced_units)
+        # ) / (temperature_reduced_units * self.ureg.boltzmann_constant * self.ureg.sim_time)
 
         for particle, properties in self.input["Particles properties"].items():
             self.type_particles[particle] = properties["index"]
@@ -326,18 +327,17 @@ class Properties:
             )
             self.epsilon_reduced_units[particle] = (
                 (
-                    (properties["epsilon"] * self.ureg.kelvin)
-                    * self.ureg.boltzmann_constant
+                    (properties["epsilon"] * self.ureg.kilojoules/self.ureg.mol)
+                    / self.ureg.avogadro_constant
                 ).to("sim_energy")
             ).magnitude
-
     def _simulation_settings(self):
 
         self.num_samples = int(
             self.n_blocks * self.block_size / self.probability_reaction
         )
         self.sample_iteration_size_capture = 20
-        self.sample_begin_capture = 200
+        self.sample_begin_capture = 50
         self.n_samp_iter = int(
             (self.num_samples - self.sample_begin_capture)
             / self.sample_iteration_size_capture
@@ -347,7 +347,7 @@ class Properties:
     def _system_definition(self):
         self.system = espressomd.System(box_l=[self.box_length_reduced_units] * 3)
         self.system.time_step = self.time_step
-        self.system.cell_system.skin = 2.0
+        self.system.cell_system.skin = 0.1
         self.system.periodicity = [True, True, True]
         np.random.seed(seed=10)  # initialize the random number generator in numpy
 
